@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { calculateNutrition, PatientData, NutritionResult } from './lib/calculateNutrition';
 import { Calculator, ListPlus, Activity, Plus, Minus, Trash2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -43,6 +44,17 @@ export default function App() {
   const [consumedProtein, setConsumedProtein] = useState<number>(0);
   const [consumedEnergy, setConsumedEnergy] = useState<number>(0);
 
+  // 自定义食物库状态
+  const [customFoods, setCustomFoods] = useState<typeof FOOD_DATABASE>([]);
+  const [customName, setCustomName] = useState('');
+  const [customEnergy, setCustomEnergy] = useState('');
+  const [customProtein, setCustomProtein] = useState('');
+  const [customIsQuality, setCustomIsQuality] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // 合并数据库
+  const allFoods = [...FOOD_DATABASE, ...customFoods];
+
   // 本地库记餐状态
   const [mealItems, setMealItems] = useState<MealItem[]>([]);
 
@@ -51,8 +63,27 @@ export default function App() {
     setResult(res);
   };
 
+  const handleAddCustomFood = () => {
+    if (!customName) return;
+    const newFood = {
+      id: Date.now(),
+      name: customName,
+      category: '自定义',
+      energy: Number(customEnergy) || 0,
+      protein: Number(customProtein) || 0,
+      isQuality: customIsQuality
+    };
+    setCustomFoods([...customFoods, newFood]);
+    setIsDialogOpen(false);
+    // clean up form
+    setCustomName('');
+    setCustomEnergy('');
+    setCustomProtein('');
+    setCustomIsQuality(false);
+  };
+
   const addFood = (foodId: number) => {
-    const food = FOOD_DATABASE.find(f => f.id === foodId);
+    const food = allFoods.find(f => f.id === foodId);
     if (!food) return;
     if (mealItems.some(item => item.food.id === foodId)) return;
     setMealItems([...mealItems, { food, weight: 100 }]); // 默认 100g
@@ -299,9 +330,54 @@ export default function App() {
 
                     {/* Local Food Library */}
                     <div className="space-y-4 pt-2">
-                      <h4 className="font-medium flex items-center gap-2 text-[#5E7D56]"><ListPlus size={18} /> 本地食物库快速添加</h4>
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium flex items-center gap-2 text-[#5E7D56]"><ListPlus size={18} /> 本地库快速添加</h4>
+                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 rounded-lg text-xs border-[#DAD7CD] text-[#5E7D56]">
+                              <Plus size={14} className="mr-1" /> 自定义食材
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle className="text-[#5E7D56]">自定义食材数据</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="name">食材名称</Label>
+                                <Input id="name" placeholder="例如：红薯、自制丸子" value={customName} onChange={e => setCustomName(e.target.value)} />
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="energy">热量 (kcal/100g)</Label>
+                                  <Input id="energy" type="number" placeholder="0" value={customEnergy} onChange={e => setCustomEnergy(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="protein">蛋白质 (g/100g)</Label>
+                                  <Input id="protein" type="number" placeholder="0" value={customProtein} onChange={e => setCustomProtein(e.target.value)} />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>是否属于优质蛋白？ (肉/蛋/奶/豆)</Label>
+                                <RadioGroup value={customIsQuality ? 'true' : 'false'} onValueChange={v => setCustomIsQuality(v === 'true')} className="flex space-x-4">
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="true" id="cq-yes" />
+                                    <Label htmlFor="cq-yes">是</Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="false" id="cq-no" />
+                                    <Label htmlFor="cq-no">否</Label>
+                                  </div>
+                                </RadioGroup>
+                              </div>
+                            </div>
+                            <Button onClick={handleAddCustomFood} disabled={!customName} className="w-full bg-[#5E7D56] text-white">添加至列表</Button>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                      
                       <div className="grid grid-cols-2 gap-2">
-                        {FOOD_DATABASE.map(food => (
+                        {allFoods.map(food => (
                           <button 
                             key={food.id}
                             onClick={() => addFood(food.id)}
