@@ -11,9 +11,10 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { calculateNutrition, PatientData, NutritionResult } from './lib/calculateNutrition';
 import { analyzeMealImage } from './lib/gemini';
-import { Calculator, Camera, ChefHat, Activity } from 'lucide-react';
+import { Calculator, Camera, ChefHat, Activity, KeyRound, ExternalLink } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 export default function App() {
@@ -99,11 +100,55 @@ export default function App() {
     <div className="min-h-screen bg-[#F8F9F5] text-[#344E41] p-4 sm:p-8 font-sans">
       <div className="max-w-5xl mx-auto space-y-6">
         
-        <header className="bg-[#5E7D56] text-white rounded-[24px] p-6 sm:p-8 relative overflow-hidden mb-8 shadow-[0_8px_30px_rgba(0,0,0,0.03)]">
+        <header className="bg-[#5E7D56] text-white rounded-[24px] p-6 sm:p-8 relative overflow-hidden mb-8 shadow-[0_8px_30px_rgba(0,0,0,0.03)] flex justify-between items-start">
           <div className="relative z-10 flex flex-col items-start gap-2">
             <h1 className="text-2xl sm:text-[28px] font-normal tracking-tight m-0">儿科肾脏病营养计算助手</h1>
             <p className="text-sm opacity-90 m-0">计算引擎版本: v2.4 (基于权威文献数据来源)</p>
           </div>
+          
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="relative z-10 bg-white/10 hover:bg-white/20 border-white/20 text-white rounded-xl">
+                <KeyRound size={16} className="mr-2" />
+                配置 API Key
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-[#5E7D56]">获取你的 Gemini API 密钥</DialogTitle>
+                <DialogDescription>
+                  为了在部署的网站上使用“智能识图”功能，你需要配置一个属于自己的 Google Gemini API 密钥。
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-[#344E41]">1. 申请免费 API Key</h4>
+                  <p className="text-sm text-[#344E41]/70">
+                    前往 Google AI Studio 官网，登录你的 Google 账号并点击 "Get API Key" 创建一个免费的测试密钥。
+                  </p>
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="inline-flex items-center text-sm text-[#5E7D56] hover:underline font-medium">
+                    前往 AI Studio 申请 <ExternalLink size={14} className="ml-1" />
+                  </a>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-[#344E41]">2. 填入 Netlify 环境变量</h4>
+                  <p className="text-sm text-[#344E41]/70">
+                    回到你的 Netlify 部署控制台，依次点击：<br/>
+                    <strong>Site configuration</strong> → <strong>Environment variables</strong> → <strong>Add a variable</strong><br/>
+                    • 键 (Key) 填入：<code className="bg-slate-100 px-1 py-0.5 rounded text-xs">GEMINI_API_KEY</code><br/>
+                    • 值 (Value) 填入：你刚才申请的以 AIzaSy 开头的密钥。
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-[#c0392b]">3. 重新部署 (重要)</h4>
+                  <p className="text-sm text-[#344E41]/70">
+                    设置完成后，返回 Netlify 的 <strong>Deploys</strong> 页面，点击 <strong>Trigger deploy</strong> → <strong>Clear cache and deploy site</strong>，等待发布变绿即可。
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <div className="absolute -right-5 -bottom-5 text-8xl opacity-10 select-none">🍃</div>
         </header>
 
