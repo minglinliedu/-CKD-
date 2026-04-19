@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,11 +6,28 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { calculateNutrition, PatientData, NutritionResult } from './lib/calculateNutrition';
-import { analyzeMealImage } from './lib/gemini';
-import { Calculator, Camera, ChefHat, Activity, KeyRound, ExternalLink } from 'lucide-react';
+import { Calculator, ListPlus, Activity, Plus, Minus, Trash2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+
+// --- 本地食物数据库 (带 CKD 医学标识) ---
+const FOOD_DATABASE = [
+  { id: 1, name: '米饭(蒸)', category: '主食', energy: 116, protein: 2.6, isQuality: false },
+  { id: 2, name: '麦淀粉(肾病面条)', category: '主食', energy: 350, protein: 0.5, isQuality: false },
+  { id: 3, name: '水煮鸡蛋', category: '肉禽蛋', energy: 144, protein: 13.3, isQuality: true },
+  { id: 4, name: '瘦猪肉', category: '肉禽蛋', energy: 143, protein: 20.3, isQuality: true },
+  { id: 5, name: '鸡胸肉', category: '肉禽蛋', energy: 118, protein: 24.6, isQuality: true },
+  { id: 6, name: '纯牛奶', category: '奶类', energy: 54, protein: 3.0, isQuality: true },
+  { id: 7, name: '豆腐(北)', category: '大豆类', energy: 116, protein: 12.2, isQuality: true },
+  { id: 8, name: '大白菜', category: '蔬菜水果', energy: 15, protein: 1.5, isQuality: false },
+  { id: 9, name: '西红柿', category: '蔬菜水果', energy: 15, protein: 0.9, isQuality: false },
+  { id: 10, name: '苹果', category: '蔬菜水果', energy: 52, protein: 0.2, isQuality: false },
+];
+
+type MealItem = {
+  food: typeof FOOD_DATABASE[0];
+  weight: number; // 克 (g)
+};
 
 export default function App() {
   const [patientData, setPatientData] = useState<PatientData>({
@@ -31,68 +43,50 @@ export default function App() {
   const [consumedProtein, setConsumedProtein] = useState<number>(0);
   const [consumedEnergy, setConsumedEnergy] = useState<number>(0);
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any | null>(null);
+  // 本地库记餐状态
+  const [mealItems, setMealItems] = useState<MealItem[]>([]);
 
   const handleCalculate = () => {
     const res = calculateNutrition(patientData);
     setResult(res);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      setAnalysisResult(null);
-    }
+  const addFood = (foodId: number) => {
+    const food = FOOD_DATABASE.find(f => f.id === foodId);
+    if (!food) return;
+    if (mealItems.some(item => item.food.id === foodId)) return;
+    setMealItems([...mealItems, { food, weight: 100 }]); // 默认 100g
   };
 
-  const handleAnalyzeMeal = async () => {
-    if (!imagePreview || !result) return;
-    
-    setIsAnalyzing(true);
-    try {
-      const base64Data = imagePreview.split(',')[1];
-      const mimeType = imageFile?.type || 'image/jpeg';
-      
-      const remainingEnergy = result.totalEnergy - consumedEnergy;
-      const remainingProtein = result.totalProtein - consumedProtein;
-      
-      const analysis = await analyzeMealImage(
-        base64Data, 
-        mimeType, 
-        remainingEnergy, 
-        remainingProtein,
-        result.totalEnergy,
-        result.totalProtein
-      );
-      
-      setAnalysisResult(analysis);
-      
-      // Auto-update consumed amounts after analysis confirmation? 
-      // For now, let's just display it.
-    } catch (err) {
-      console.error(err);
-      alert("分析失败，请检查网络或API Key配置。");
-    } finally {
-      setIsAnalyzing(false);
-    }
+  const updateWeight = (foodId: number, delta: number) => {
+    setMealItems(mealItems.map(item => {
+      if (item.food.id === foodId) {
+        const newWeight = Math.max(0, item.weight + delta);
+        return { ...item, weight: newWeight };
+      }
+      return item;
+    }).filter(item => item.weight > 0)); // 若为0则自动移除
   };
+
+  const removeFood = (foodId: number) => {
+    setMealItems(mealItems.filter(item => item.food.id !== foodId));
+  };
+
+  const currentMealSummary = mealItems.reduce((acc, item) => {
+    const multiplier = item.weight / 100;
+    acc.energy += item.food.energy * multiplier;
+    acc.protein += item.food.protein * multiplier;
+    if (item.food.isQuality) {
+      acc.qualityProtein += item.food.protein * multiplier;
+    }
+    return acc;
+  }, { energy: 0, protein: 0, qualityProtein: 0 });
 
   const applyMealToConsumed = () => {
-    if (analysisResult) {
-      setConsumedProtein(prev => prev + analysisResult.estimated_protein);
-      setConsumedEnergy(prev => prev + analysisResult.estimated_energy);
-      setAnalysisResult(null);
-      setImageFile(null);
-      setImagePreview(null);
+    if (mealItems.length > 0) {
+      setConsumedProtein(prev => prev + currentMealSummary.protein);
+      setConsumedEnergy(prev => prev + currentMealSummary.energy);
+      setMealItems([]); // 记录完后清空当前餐盘
     }
   };
 
@@ -105,50 +99,6 @@ export default function App() {
             <h1 className="text-2xl sm:text-[28px] font-normal tracking-tight m-0">儿科肾脏病营养计算助手</h1>
             <p className="text-sm opacity-90 m-0">计算引擎版本: v2.4 (基于权威文献数据来源)</p>
           </div>
-          
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="relative z-10 bg-white/10 hover:bg-white/20 border-white/20 text-white rounded-xl">
-                <KeyRound size={16} className="mr-2" />
-                配置 API Key
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-[#5E7D56]">获取你的 Gemini API 密钥</DialogTitle>
-                <DialogDescription>
-                  为了在部署的网站上使用“智能识图”功能，你需要配置一个属于自己的 Google Gemini API 密钥。
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-[#344E41]">1. 申请免费 API Key</h4>
-                  <p className="text-sm text-[#344E41]/70">
-                    前往 Google AI Studio 官网，登录你的 Google 账号并点击 "Get API Key" 创建一个免费的测试密钥。
-                  </p>
-                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="inline-flex items-center text-sm text-[#5E7D56] hover:underline font-medium">
-                    前往 AI Studio 申请 <ExternalLink size={14} className="ml-1" />
-                  </a>
-                </div>
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-[#344E41]">2. 填入 Netlify 环境变量</h4>
-                  <p className="text-sm text-[#344E41]/70">
-                    回到你的 Netlify 部署控制台，依次点击：<br/>
-                    <strong>Site configuration</strong> → <strong>Environment variables</strong> → <strong>Add a variable</strong><br/>
-                    • 键 (Key) 填入：<code className="bg-slate-100 px-1 py-0.5 rounded text-xs">GEMINI_API_KEY</code><br/>
-                    • 值 (Value) 填入：你刚才申请的以 AIzaSy 开头的密钥。
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-[#c0392b]">3. 重新部署 (重要)</h4>
-                  <p className="text-sm text-[#344E41]/70">
-                    设置完成后，返回 Netlify 的 <strong>Deploys</strong> 页面，点击 <strong>Trigger deploy</strong> → <strong>Clear cache and deploy site</strong>，等待发布变绿即可。
-                  </p>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
           <div className="absolute -right-5 -bottom-5 text-8xl opacity-10 select-none">🍃</div>
         </header>
 
@@ -157,8 +107,8 @@ export default function App() {
             <TabsTrigger value="calculator" className="flex items-center gap-2 rounded-[12px] data-[state=active]:bg-[#E9EDC9] data-[state=active]:text-[#5E7D56]">
               <Calculator size={16} /> 营养额度计算
             </TabsTrigger>
-            <TabsTrigger value="analyzer" disabled={!result} className="flex items-center gap-2 rounded-[12px] data-[state=active]:bg-[#E9EDC9] data-[state=active]:text-[#5E7D56]">
-              <Camera size={16} /> 多模态识餐
+            <TabsTrigger value="tracker" disabled={!result} className="flex items-center gap-2 rounded-[12px] data-[state=active]:bg-[#E9EDC9] data-[state=active]:text-[#5E7D56]">
+              <ListPlus size={16} /> 手动食物记餐
             </TabsTrigger>
           </TabsList>
 
@@ -319,21 +269,22 @@ export default function App() {
             </div>
           </TabsContent>
 
-          <TabsContent value="analyzer" className="space-y-6">
+          <TabsContent value="tracker" className="space-y-6">
             {result && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="rounded-[24px] border-[#DAD7CD] shadow-[0_8px_30px_rgba(0,0,0,0.03)] bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <Card className="rounded-[24px] border-[#DAD7CD] shadow-[0_8px_30px_rgba(0,0,0,0.03)] bg-white sticky top-4">
                   <CardHeader>
                     <CardTitle className="text-[#5E7D56]">每日额度追踪</CardTitle>
-                    <CardDescription className="opacity-70">今日消耗与剩余量</CardDescription>
+                    <CardDescription className="opacity-70">今日已消耗与剩余配额</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
+                    {/* Progress Bars */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium text-[#344E41]">能量 (kcal)</span>
-                        <span className="text-[#A3B18A]">{consumedEnergy} / {result.totalEnergy} ({result.totalEnergy - consumedEnergy} 剩余)</span>
+                        <span className="text-[#A3B18A]">{consumedEnergy.toFixed(0)} / {result.totalEnergy} ({(result.totalEnergy - consumedEnergy).toFixed(0)} 剩余)</span>
                       </div>
-                      <Progress value={(consumedEnergy / result.totalEnergy) * 100} className="h-2 [&>div]:bg-[#A3B18A] bg-[#DAD7CD]/50" />
+                      <Progress value={Math.min(100, (consumedEnergy / result.totalEnergy) * 100)} className="h-2 [&>div]:bg-[#A3B18A] bg-[#DAD7CD]/50" />
                     </div>
 
                     <div className="space-y-2">
@@ -341,94 +292,93 @@ export default function App() {
                         <span className="font-medium text-[#344E41]">蛋白质 (g)</span>
                         <span className="text-[#A3B18A]">{consumedProtein.toFixed(1)} / {result.totalProtein} ({(result.totalProtein - consumedProtein).toFixed(1)} 剩余)</span>
                       </div>
-                      <Progress value={(consumedProtein / result.totalProtein) * 100} className="h-2 [&>div]:bg-[#A3B18A] bg-[#DAD7CD]/50" />
+                      <Progress value={Math.min(100, (consumedProtein / result.totalProtein) * 100)} className="h-2 [&>div]:bg-[#A3B18A] bg-[#DAD7CD]/50" />
                     </div>
                     
                     <Separator className="bg-[#DAD7CD]/50" />
 
+                    {/* Local Food Library */}
                     <div className="space-y-4 pt-2">
-                      <h4 className="font-medium flex items-center gap-2 text-[#5E7D56]"><ChefHat size={18} /> 拍照识餐</h4>
-                      <div className="border-2 border-dashed border-[#DAD7CD] rounded-[20px] p-4 text-center hover:bg-[#E9EDC9]/30 transition-colors">
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleImageUpload} 
-                          className="hidden" 
-                          id="camera-input"
-                        />
-                        <label htmlFor="camera-input" className="cursor-pointer flex flex-col items-center justify-center p-6">
-                          {imagePreview ? (
-                            <img src={imagePreview} alt="Preview" className="max-h-48 object-contain rounded-[12px] shadow-[0_4px_10px_rgba(0,0,0,0.05)]" />
-                          ) : (
-                            <>
-                              <Camera className="w-10 h-10 text-[#A3B18A] mb-3" />
-                              <span className="text-[#5E7D56] font-medium">点击拍照或上传食物照片</span>
-                              <span className="text-xs text-[#344E41]/60 mt-1">支持 JPEG, PNG 格式</span>
-                            </>
-                          )}
-                        </label>
+                      <h4 className="font-medium flex items-center gap-2 text-[#5E7D56]"><ListPlus size={18} /> 本地食物库快速添加</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {FOOD_DATABASE.map(food => (
+                          <button 
+                            key={food.id}
+                            onClick={() => addFood(food.id)}
+                            className="p-3 border border-[#DAD7CD] rounded-[16px] bg-[#F8F9F5] hover:bg-[#E9EDC9]/50 transition-colors text-left flex flex-col items-start"
+                          >
+                            <span className="font-medium text-[#344E41] text-sm">{food.name}</span>
+                            <span className="text-[10px] text-[#A3B18A] mt-1">{food.energy}cal / 蛋白{food.protein}g</span>
+                            {food.isQuality && <span className="mt-1.5 px-1.5 py-0.5 bg-[#5E7D56]/15 text-[#5E7D56] text-[9px] font-medium rounded-sm">优质蛋白</span>}
+                          </button>
+                        ))}
                       </div>
-
-                      <Button 
-                        disabled={!imagePreview || isAnalyzing} 
-                        onClick={handleAnalyzeMeal}
-                        className="w-full bg-[#A3B18A] hover:bg-[#5E7D56] text-white rounded-[16px] py-6"
-                      >
-                        {isAnalyzing ? "正在智能分析中..." : "开始 AI 膳食评估"}
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="rounded-[24px] border-[#DAD7CD] shadow-[0_8px_30px_rgba(0,0,0,0.03)] bg-white">
+                <Card className="rounded-[24px] border-[#DAD7CD] shadow-[0_8px_30px_rgba(0,0,0,0.03)] bg-white h-full flex flex-col">
                   <CardHeader>
-                    <CardTitle className="text-[#5E7D56]">AI 评估报告</CardTitle>
-                    <CardDescription className="opacity-70">Gemini 视觉与营养分析</CardDescription>
+                    <CardTitle className="text-[#5E7D56]">本次就餐记录</CardTitle>
+                    <CardDescription className="opacity-70">点击左侧添加食材，调整克数即可自动计算</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    {!analysisResult ? (
-                      <div className="h-full flex flex-col items-center justify-center text-[#A3B18A] py-16 text-center">
-                        <ChefHat size={48} className="mb-4 opacity-30" />
-                        <p className="text-sm">上传图片并分析，此处将显示</p>
-                        <p className="text-sm">该膳食的成分及对今日剩余额度的影响。</p>
+                  <CardContent className="flex-1 flex flex-col">
+                    {mealItems.length === 0 ? (
+                      <div className="flex-1 flex flex-col items-center justify-center text-[#A3B18A] py-16 text-center">
+                        <ListPlus size={48} className="mb-4 opacity-30" />
+                        <p className="text-sm">尚未添加任何食物</p>
+                        <p className="text-sm">计算的营养值将在此处显示</p>
                       </div>
                     ) : (
-                      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="p-4 bg-white border border-[#DAD7CD] rounded-[20px] flex flex-col items-center shadow-[0_4px_10px_rgba(0,0,0,0.02)]">
-                            <span className="text-xs text-[#344E41]/60 font-medium uppercase">估算热量</span>
-                            <span className="text-xl font-bold text-[#5E7D56] mt-1">{analysisResult.estimated_energy} <span className="text-xs font-normal">kcal</span></span>
-                          </div>
-                          <div className="p-4 bg-white border border-[#DAD7CD] rounded-[20px] flex flex-col items-center shadow-[0_4px_10px_rgba(0,0,0,0.02)]">
-                            <span className="text-xs text-[#344E41]/60 font-medium uppercase">估算蛋白质</span>
-                            <span className="text-xl font-bold text-[#5E7D56] mt-1">{analysisResult.estimated_protein} <span className="text-xs font-normal">g</span></span>
+                      <div className="space-y-6 flex-1 flex flex-col animate-in fade-in">
+                        <div className="space-y-3 overflow-y-auto pr-1">
+                          {mealItems.map(item => (
+                            <div key={item.food.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#F8F9F5] p-4 rounded-[16px] border border-[#DAD7CD]/50 gap-4">
+                              <div className="flex flex-col">
+                                <span className="text-[15px] font-semibold text-[#344E41] flex items-center gap-2">
+                                  {item.food.name}
+                                  {item.food.isQuality && <span className="px-1.5 py-0.5 bg-[#5E7D56]/10 text-[#5E7D56] text-[9px] rounded-sm">优质</span>}
+                                </span>
+                                <span className="text-xs text-[#A3B18A] mt-1">
+                                  +{(item.food.energy * item.weight / 100).toFixed(0)} kcal | +{(item.food.protein * item.weight / 100).toFixed(1)} g 蛋白
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 bg-white border border-[#DAD7CD] p-1 rounded-xl shadow-sm self-start sm:self-auto">
+                                <button onClick={() => updateWeight(item.food.id, -25)} className="w-8 h-8 flex items-center justify-center bg-[#F8F9F5] hover:bg-[#E9EDC9] rounded-lg text-[#5E7D56]"><Minus size={14}/></button>
+                                <span className="w-12 text-center text-[13px] font-semibold text-[#344E41]">{item.weight}g</span>
+                                <button onClick={() => updateWeight(item.food.id, 25)} className="w-8 h-8 flex items-center justify-center bg-[#F8F9F5] hover:bg-[#E9EDC9] rounded-lg text-[#5E7D56]"><Plus size={14}/></button>
+                                <div className="w-[1px] h-6 bg-[#DAD7CD] mx-1"></div>
+                                <button onClick={() => removeFood(item.food.id)} className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14}/></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-auto pt-4">
+                          <h4 className="text-sm font-semibold mb-3 text-[#5E7D56]">本次摄入清单结算：</h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="p-4 bg-white border border-[#DAD7CD] rounded-[20px] flex flex-col items-center shadow-[0_4px_10px_rgba(0,0,0,0.02)]">
+                              <span className="text-xs text-[#344E41]/60 font-medium uppercase">本次热量总计</span>
+                              <span className="text-xl font-bold text-[#B08968] mt-1">{currentMealSummary.energy.toFixed(0)} <span className="text-xs font-normal">kcal</span></span>
+                            </div>
+                            <div className="p-4 bg-white border border-[#DAD7CD] rounded-[20px] flex flex-col items-center shadow-[0_4px_10px_rgba(0,0,0,0.02)]">
+                              <span className="text-xs text-[#344E41]/60 font-medium uppercase">本次蛋白质总计</span>
+                              <span className="text-xl font-bold text-[#5E7D56] mt-1">{currentMealSummary.protein.toFixed(1)} <span className="text-xs font-normal">g</span></span>
+                              {currentMealSummary.qualityProtein > 0 && <span className="text-[10px] text-[#A3B18A] mt-1">(含优质蛋白 {currentMealSummary.qualityProtein.toFixed(1)}g)</span>}
+                            </div>
                           </div>
                         </div>
 
-                        <div>
-                          <h4 className="text-sm font-semibold mb-2 text-[#5E7D56]">识别食物：</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {analysisResult.food_items?.map((item: string, i: number) => (
-                              <span key={i} className="px-3 py-1 bg-[#E9EDC9]/50 text-[#344E41] text-xs font-medium rounded-full border border-[#DAD7CD]">
-                                {item}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <h4 className="text-sm font-semibold mb-2 text-[#5E7D56]">AI 智能指导意见：</h4>
-                          <div className="bg-[#F8F9F5] p-5 rounded-[20px] text-sm text-[#344E41] leading-relaxed border border-[#DAD7CD] shadow-inner">
-                            {analysisResult.advice}
-                          </div>
-                        </div>
-
-                        <Button variant="outline" className="w-full border-[#DAD7CD] text-[#5E7D56] hover:bg-[#E9EDC9] hover:text-[#5E7D56] rounded-[16px] py-6" onClick={applyMealToConsumed}>
-                          确认吃下：记入今日额度
-                        </Button>
                       </div>
                     )}
                   </CardContent>
+                  {mealItems.length > 0 && (
+                    <CardFooter className="pt-2">
+                      <Button className="w-full bg-[#A3B18A] hover:bg-[#5E7D56] text-white rounded-[16px] py-6 shadow-sm" onClick={applyMealToConsumed}>
+                        确认记录：扣除今日额度
+                      </Button>
+                    </CardFooter>
+                  )}
                 </Card>
               </div>
             )}
