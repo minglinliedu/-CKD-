@@ -272,7 +272,7 @@ export default function App() {
           <TabsContent value="tracker" className="space-y-6">
             {result && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                <Card className="rounded-[24px] border-[#DAD7CD] shadow-[0_8px_30px_rgba(0,0,0,0.03)] bg-white sticky top-4">
+                <Card className="rounded-[24px] border-[#DAD7CD] shadow-[0_8px_30px_rgba(0,0,0,0.03)] bg-white md:sticky md:top-4 relative z-10 w-full overflow-hidden">
                   <CardHeader>
                     <CardTitle className="text-[#5E7D56]">每日额度追踪</CardTitle>
                     <CardDescription className="opacity-70">今日已消耗与剩余配额</CardDescription>
@@ -317,14 +317,14 @@ export default function App() {
                   </CardContent>
                 </Card>
 
-                <Card className="rounded-[24px] border-[#DAD7CD] shadow-[0_8px_30px_rgba(0,0,0,0.03)] bg-white h-full flex flex-col">
+                <Card className="rounded-[24px] border-[#DAD7CD] shadow-[0_8px_30px_rgba(0,0,0,0.03)] bg-white relative z-0 w-full flex flex-col">
                   <CardHeader>
                     <CardTitle className="text-[#5E7D56]">本次就餐记录</CardTitle>
-                    <CardDescription className="opacity-70">点击左侧添加食材，调整克数即可自动计算</CardDescription>
+                    <CardDescription className="opacity-70">点击上方/左侧食材，调整克数即可自动结算</CardDescription>
                   </CardHeader>
-                  <CardContent className="flex-1 flex flex-col">
+                  <CardContent className="flex flex-col flex-1">
                     {mealItems.length === 0 ? (
-                      <div className="flex-1 flex flex-col items-center justify-center text-[#A3B18A] py-16 text-center">
+                      <div className="flex flex-col items-center justify-center text-[#A3B18A] py-16 text-center">
                         <ListPlus size={48} className="mb-4 opacity-30" />
                         <p className="text-sm">尚未添加任何食物</p>
                         <p className="text-sm">计算的营养值将在此处显示</p>
