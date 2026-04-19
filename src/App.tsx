@@ -352,7 +352,6 @@ export default function App() {
                         <input 
                           type="file" 
                           accept="image/*" 
-                          capture="environment"
                           onChange={handleImageUpload} 
                           className="hidden" 
                           id="camera-input"
