@@ -1,0 +1,6 @@
+{
+  "name": "儿科 CKD 营养助手",
+  "description": "基于《慢性肾脏病患儿营养指南》的营养计算与评估工具，支持多模态拍照识餐分析",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
