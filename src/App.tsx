@@ -342,6 +342,14 @@ export default function App() {
                             <DialogHeader>
                               <DialogTitle className="text-[#5E7D56]">自定义食材数据</DialogTitle>
                             </DialogHeader>
+                            <div className="bg-[#F8F9F5] border border-[#DAD7CD]/60 p-3 rounded-xl mt-2 text-xs text-[#5E7D56] leading-relaxed flex gap-2 items-start">
+                              <span className="text-base shrink-0">💡</span>
+                              <p className="m-0">
+                                <b>数值哪里找？</b><br/>
+                                包装食品：请查看包装袋背面的<b>【营养成分表】</b>(注意单位需是每100g或毫升)。<br/>
+                                生鲜菜肉：建议微信搜索<b>「查食物」</b>或<b>「薄荷营养师」</b>小程序查阅。
+                              </p>
+                            </div>
                             <div className="grid gap-4 py-4">
                               <div className="space-y-2">
                                 <Label htmlFor="name">食材名称</Label>
